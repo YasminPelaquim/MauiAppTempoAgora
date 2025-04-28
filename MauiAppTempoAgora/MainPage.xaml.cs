@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using MauiAppTempoAgora.Models;
+using MauiAppTempoAgora.Services;
 
 namespace MauiAppTempoAgora
 {
@@ -18,7 +19,7 @@ namespace MauiAppTempoAgora
             {
                 if (!string.IsNullOrEmpty(txt_cidade.Text))
                 {
-                    Tempo? t = await DataServise.GetPrevisao(txt_cidade.Text);
+                    Tempo? t = await DataService.GetPrevisao(txt_cidade.Text);
 
                     if (t != null)
                     {
@@ -59,7 +60,64 @@ namespace MauiAppTempoAgora
 
         private async void Button_Clicked_Localizacao(object sender, EventArgs e)
         {
+            try
+            {
+                GeolocationRequest request = new GeolocationRequest(
+                    GeolocationAccuracy.Medium,
+                    TimeSpan.FromSeconds(10)
+                    );
 
+                Location? local = await Geolocation.Default.GetLocationAsync(request);
+
+                if (local != null) 
+                {
+                    string local_disp = $"Latitude: {local.Latitude} \n" +
+                                        $"Longitude: {local.Longitude} \n";
+
+                    lbl_res.Text = local_disp;
+
+                    // pega nome da cidade que está nas coordenadas.
+                    GetCidade(local.Latitude, local.Longitude);
+                }
+                else
+                {
+                    lbl_coords.Text = "Nenhuma localização";
+                }
+            } catch(FeatureNotSupportedException fnsEx)
+            {
+                await DisplayAlert("Erro: Dispositivo não Suporta", fnsEx.Message, "OK");
+            }
+            catch(FeatureNotEnabledException fneEx)
+            {
+                await DisplayAlert("Erro: Localização Desabilitada", fneEx.Message, "OK");
+            }
+            catch (PermissionException pEx)
+            {
+                await DisplayAlert("Erro: Permissão da Localização", pEx.Message, "OK");
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Erro", ex.Message, "OK");
+            }
+        }
+
+        private async void GetCidade(double lat, double lon)
+        {
+            try
+            {
+                IEnumerable<Placemark> places = await Geocoding.Default.GetPlacemarksAsync(lat, lon);
+
+                Placemark? place = places.FirstOrDefault();
+
+                if (place != null)
+                {
+                    txt_cidade.Text = place.Locality;
+                }
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Erro: Obtenção do nome da Cidade", ex.Message, "OK");
+            }
         }
     }
 
